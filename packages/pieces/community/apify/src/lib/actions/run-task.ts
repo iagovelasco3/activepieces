@@ -12,6 +12,7 @@ import {
   createWaitForFinishProperty,
   RunType
 } from '../common';
+import { runTaskActionOutputSchema } from '../output-schemas';
 
 export const runTask = createAction({
   name: 'runTask',
@@ -19,6 +20,7 @@ export const runTask = createAction({
   displayName: 'Run Task',
   description: 'Runs an Actor task and returns all associated details.',
   audience: 'human',
+  outputSchema: runTaskActionOutputSchema,
   aiMetadata: { description: 'Runs a saved Apify Actor task (an Actor pre-configured with stored input) by task ID, optionally overriding the input body and build/memory/timeout. Use this instead of Run Actor when the user has an existing configured task to execute; set waitForFinish to block until completion and retrieve dataset items. Not idempotent — each call launches a new task run.', idempotent: false },
   props: {
     taskid: createTaskIdProperty(),

@@ -13,6 +13,7 @@ import {
   createWaitForFinishProperty,
   RunType
 } from '../common';
+import { runActorActionOutputSchema } from '../output-schemas';
 
 export const runActor = createAction({
   name: 'runActor',
@@ -20,6 +21,7 @@ export const runActor = createAction({
   displayName: 'Run Actor',
   description: 'Runs an Actor and returns all associated details.',
   audience: 'human',
+  outputSchema: runActorActionOutputSchema,
   aiMetadata: { description: 'Starts an Apify Actor (a hosted scraper/automation program) by actor ID, passing a JSON input body and optional build/memory/timeout settings. Use this to execute a specific Actor for scraping or data extraction; set waitForFinish to block until the run completes and fetch its dataset items. Not idempotent — each call launches a new actor run.', idempotent: false },
   props: {
     actorSource: createActorSourceProperty(),

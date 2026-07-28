@@ -106,16 +106,7 @@ export const batchScrapeActionOutputSchema: OutputSchema = {
 export const mapWebsiteActionOutputSchema: OutputSchema = {
   fields: [
     { key: 'success', label: 'Success', format: 'boolean' },
-    { key: 'id', label: 'Map ID' },
-    {
-      key: 'links',
-      label: 'Links',
-      labelKey: 'title',
-      listItems: [
-        { key: 'url', label: 'URL', format: 'url' },
-        { key: 'title', label: 'Title' },
-      ],
-    },
+    { key: 'links', label: 'Links' },
   ],
 };
 

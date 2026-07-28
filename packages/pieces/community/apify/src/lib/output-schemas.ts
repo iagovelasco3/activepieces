@@ -316,6 +316,40 @@ export const listTasksActionOutputSchema: OutputSchema = {
   ],
 };
 
+const webhookRunResourceFields: OutputSchema['fields'] = [
+  { key: 'id', label: 'Run ID' },
+  { key: 'actId', label: 'Actor ID' },
+  { key: 'actorTaskId', label: 'Task ID' },
+  { key: 'status', label: 'Status' },
+  { key: 'startedAt', label: 'Started At', format: 'datetime' },
+  { key: 'finishedAt', label: 'Finished At', format: 'datetime' },
+  { key: 'buildNumber', label: 'Build Number' },
+  { key: 'exitCode', label: 'Exit Code' },
+  { key: 'defaultDatasetId', label: 'Dataset ID' },
+  { key: 'defaultKeyValueStoreId', label: 'Key-Value Store ID' },
+  { key: 'defaultRequestQueueId', label: 'Request Queue ID' },
+  { key: 'usageTotalUsd', label: 'Usage (USD)', format: 'currency', currency: 'USD' },
+  { key: 'consoleUrl', label: 'Console URL', value: 'links.consoleRunUrl', format: 'url' },
+];
+
+export const watchRunsTriggerOutputSchema: OutputSchema = {
+  fields: [
+    { key: 'userId', label: 'User ID' },
+    { key: 'createdAt', label: 'Created At', format: 'datetime' },
+    { key: 'eventType', label: 'Event Type' },
+    {
+      key: 'eventData',
+      label: 'Event Data',
+      children: [
+        { key: 'actorId', label: 'Actor ID' },
+        { key: 'actorTaskId', label: 'Task ID' },
+        { key: 'actorRunId', label: 'Run ID' },
+      ],
+    },
+    { key: 'resource', label: 'Run', children: webhookRunResourceFields },
+  ],
+};
+
 const runSummaryFields: OutputSchema['fields'] = [
   { key: 'id', label: 'Run ID' },
   { key: 'actId', label: 'Actor ID' },
