@@ -6,6 +6,9 @@ import {
   QueryParams,
 } from '@activepieces/pieces-common';
 
+/** Kept in sync with package.json by hand; see the note in the n8n node. */
+const PIECE_VERSION = '0.1.0';
+
 /**
  * The four fields as configured in the connection. Note that a CustomAuth
  * connection hands them over nested under `.props`, never at the top level.
@@ -108,6 +111,10 @@ export async function waflyApiCall<T extends HttpMessageBody>({
     headers: {
       'Client-Token': clientToken,
       'Content-Type': 'application/json',
+      // Identifies the caller, the same way any SDK does. Carries nothing about
+      // the user or the flow — it is what separates real usage from install
+      // counts, which are inflated by CI and mirrors.
+      'User-Agent': `activepieces-piece-wafly/${PIECE_VERSION}`,
     },
     body,
     queryParams,
