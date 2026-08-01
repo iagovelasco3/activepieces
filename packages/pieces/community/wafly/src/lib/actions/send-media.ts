@@ -65,7 +65,15 @@ export const sendMedia = createAction({
   },
   async run(context) {
     const { phone, mediaType, url, caption, fileName } = context.propsValue;
+    // An imported, copied or stale flow can carry a mediaType that no longer
+    // exists here. Without this check the undefined route would blow up on
+    // route.field with a stack trace instead of something actionable.
     const route = MEDIA_ROUTES[mediaType as MediaType];
+    if (!route) {
+      throw new Error(
+        `Unsupported media type "${mediaType}". Pick image, video, audio or document.`
+      );
+    }
 
     const body: Record<string, unknown> = {
       phone: normalizePhone(phone),

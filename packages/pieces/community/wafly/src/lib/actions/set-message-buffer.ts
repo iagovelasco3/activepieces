@@ -60,6 +60,13 @@ export const setMessageBuffer = createAction({
     const { windowSeconds, maxWaitSeconds, maxMessages, mode, includeGroups } =
       context.propsValue;
 
+    // Same reasoning as the media route: a stale flow could hold a mode the API
+    // no longer accepts, and failing here beats a remote rejection the user has
+    // to go read in a log.
+    if (mode !== 'concat' && mode !== 'batch') {
+      throw new Error(`Unsupported buffer mode "${mode}". Use concat or batch.`);
+    }
+
     // The API works in milliseconds; seconds is what makes sense to someone
     // setting "how long to wait for the person to finish typing".
     return await waflyApiCall({

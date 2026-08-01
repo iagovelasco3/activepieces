@@ -34,6 +34,25 @@ transcribed when those settings are on.
 > the webhook URL from Activepieces and paste it in the Wafly dashboard under
 > **Instance → Webhooks**. It is a one-time step.
 
+### Securing the trigger
+
+The flow webhook URL is a public endpoint. Anyone who learns it can POST a body
+and drive the rest of your flow. Two layers, and it is worth being clear about
+what each one is worth:
+
+- **Webhook Secret** (optional field on the trigger). When filled, every
+  delivery is verified with HMAC-SHA256 against the `X-Hub-Signature-256`
+  header, compared in constant time. This is real authentication — a forged
+  request without the secret is dropped.
+- **Instance match** (always on). Events whose `instanceId` does not match the
+  connection are discarded. This is *not* authentication: someone who knows your
+  instance name still gets through. It only removes stray traffic.
+
+**With no secret configured, the URL itself is the only thing protecting the
+trigger — treat it as a credential.** If your Wafly deployment does not yet
+expose a per-instance webhook secret, leave the field empty and keep the URL
+private.
+
 ## Connection
 
 Get these from [wafly.com.br](https://wafly.com.br):

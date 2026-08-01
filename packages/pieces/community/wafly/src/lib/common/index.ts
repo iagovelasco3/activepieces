@@ -106,14 +106,23 @@ export async function waflyApiCall<T extends HttpMessageBody>({
 }
 
 /**
+ * Group identifiers travel in the same field as phone numbers and must survive
+ * untouched: either the JID form ("120363...@g.us") or the legacy form, which
+ * is a long creator-number-plus-timestamp pair joined by a hyphen.
+ *
+ * A hyphen alone cannot mean "group" — "+55 11 99999-9999" is how people
+ * actually type a Brazilian number, and stripping that check is what makes the
+ * difference between a delivered message and a rejected recipient.
+ */
+const GROUP_ID = /@|^\d{15,}-\d+$/;
+
+/**
  * Wafly wants a plain international number (e.g. 5511999999999), so a pasted
- * "+55 (11) 99999-9999" is cleaned up. Group IDs also travel in this field and
- * are NOT numbers — "120363...@g.us" would be mangled into digits and silently
- * addressed to the wrong chat, so anything carrying an @ or a - is left alone.
+ * "+55 (11) 99999-9999" is cleaned up before sending.
  */
 export function normalizePhone(recipient: string): string {
   const value = recipient.trim();
-  if (value.includes('@') || value.includes('-')) {
+  if (GROUP_ID.test(value)) {
     return value;
   }
   return value.replace(/\D/g, '');
