@@ -15,6 +15,7 @@ export type WaflyCredentials = {
   clientToken: string;
   instance: string;
   token: string;
+  openaiApiKey?: string;
 };
 
 export type WaflyAuthValue = { props: WaflyCredentials };
@@ -43,6 +44,16 @@ export const waflyAuth = PieceAuth.CustomAuth({
       displayName: 'Instance Token',
       description: 'Token of that specific instance.',
       required: true,
+    }),
+    // Only the transcription action uses this, but the framework has no secret
+    // field for action props — secrets belong to the connection, where the
+    // value is stored encrypted and shown masked. A plain text prop would put
+    // an OpenAI key in the clear inside the flow.
+    openaiApiKey: PieceAuth.SecretText({
+      displayName: 'OpenAI API Key (optional)',
+      description:
+        'Only needed for Configure Audio Transcription. The cost lands on your own OpenAI account; Wafly adds nothing. Leave empty if you do not use transcription, or to keep the key already stored in Wafly.',
+      required: false,
     }),
   },
   validate: async ({ auth }) => {

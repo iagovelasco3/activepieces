@@ -63,6 +63,10 @@ Get these from [wafly.com.br](https://wafly.com.br):
 | Client Token | Dashboard → Security |
 | Instance | The instance name |
 | Instance Token | That instance's token |
+| OpenAI API Key | Optional — only for Configure Audio Transcription |
+
+The OpenAI key sits on the connection rather than on the action so it is stored
+encrypted and shown masked. Leave it empty if you do not use transcription.
 
 Free 3-day trial, no card. Connect by QR Code.
 

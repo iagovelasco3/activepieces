@@ -1,6 +1,6 @@
-import { createAction, Property, PieceAuth } from '@activepieces/pieces-framework';
+import { createAction, Property } from '@activepieces/pieces-framework';
 import { HttpMethod } from '@activepieces/pieces-common';
-import { waflyAuth, waflyApiCall } from '../common';
+import { waflyAuth, waflyApiCall, WaflyAuthValue } from '../common';
 
 export const setTranscription = createAction({
   auth: waflyAuth,
@@ -15,12 +15,6 @@ export const setTranscription = createAction({
     idempotent: true,
   },
   props: {
-    apiKey: PieceAuth.SecretText({
-      displayName: 'OpenAI API Key',
-      description:
-        'Yours — the cost lands on your own OpenAI account and Wafly adds nothing. Stored encrypted and never returned by the API. Leave empty to keep the key already saved and change only the limits.',
-      required: false,
-    }),
     maxAudioSeconds: Property.Number({
       displayName: 'Max Audio Length (seconds)',
       description: 'Voice notes longer than this are delivered without a transcript.',
@@ -36,8 +30,11 @@ export const setTranscription = createAction({
     }),
   },
   async run(context) {
-    const { apiKey, maxAudioSeconds, monthlyMinutesCap } = context.propsValue;
-    const key = (apiKey ?? '').trim();
+    const { maxAudioSeconds, monthlyMinutesCap } = context.propsValue;
+    // The key lives on the connection, not here: the framework has no secret
+    // field for action props, and an OpenAI key does not belong in plain text
+    // inside a flow.
+    const key = ((context.auth as WaflyAuthValue).props.openaiApiKey ?? '').trim();
 
     return await waflyApiCall({
       auth: context.auth,
