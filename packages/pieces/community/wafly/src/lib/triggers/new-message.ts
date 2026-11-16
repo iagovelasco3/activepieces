@@ -52,8 +52,8 @@ export const newMessage = createTrigger({
     },
   },
   /**
-   * Wafly has no public endpoint to register a webhook URL — it is set in the
-   * dashboard, under Instance -> Webhooks. So there is nothing to subscribe or
+   * Wafly exposes a webhook configuration API. Setup stays manual so enabling
+   * a flow cannot replace an existing callback. There is nothing to subscribe or
    * unsubscribe here, and the URL is pasted by hand once. Doing it silently in
    * onEnable would be worse than doing nothing: the flow would look armed and
    * never fire.
@@ -68,7 +68,7 @@ export const newMessage = createTrigger({
   },
   async run(context) {
     const body = context.payload.body as Record<string, unknown> | undefined;
-    if (!body) {
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
       return [];
     }
 
@@ -92,7 +92,7 @@ export const newMessage = createTrigger({
       // say so than to silently drop every event.
       if (typeof raw !== 'string') {
         throw new Error(
-          'Cannot verify the webhook signature: the raw request body is not available. Clear the Webhook Secret field to accept events without verification.'
+          'Cannot verify the webhook signature: the raw request body is not available. Preserve raw request bytes in the webhook runtime before using signed deliveries.'
         );
       }
 
@@ -105,13 +105,18 @@ export const newMessage = createTrigger({
     }
 
     // 2. Instance match. Not authentication — someone who knows the instance
-    //    name still gets through — but it costs nothing and drops traffic that
+    //    ID still gets through — but it costs nothing and drops traffic that
     //    was never meant for this connection.
     const payloadInstance = body['instanceId'] ?? body['instance'];
     const connectionInstance = (context.auth as WaflyAuthValue).props.instance;
     if (
-      typeof payloadInstance === 'string' &&
-      payloadInstance !== connectionInstance
+      typeof connectionInstance !== 'string' ||
+      !connectionInstance.trim() ||
+      typeof payloadInstance !== 'string' ||
+      payloadInstance !== connectionInstance ||
+      (body['instanceId'] !== undefined &&
+        body['instance'] !== undefined &&
+        body['instanceId'] !== body['instance'])
     ) {
       return [];
     }

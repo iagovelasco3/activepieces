@@ -1,13 +1,12 @@
 import { PieceAuth, Property } from '@activepieces/pieces-framework';
 import {
-  httpClient,
   HttpMethod,
   HttpMessageBody,
   QueryParams,
 } from '@activepieces/pieces-common';
 
 /** Kept in sync with package.json by hand; see the note in the n8n node. */
-const PIECE_VERSION = '0.1.0';
+const PIECE_VERSION = '0.1.1';
 
 /**
  * The four fields as configured in the connection. Note that a CustomAuth
@@ -40,7 +39,7 @@ export const waflyAuth = PieceAuth.CustomAuth({
     }),
     instance: Property.ShortText({
       displayName: 'Instance',
-      description: 'Name of the WhatsApp instance.',
+      description: 'Public Instance ID from the Wafly dashboard.',
       required: true,
     }),
     token: PieceAuth.SecretText({
@@ -67,14 +66,14 @@ export const waflyAuth = PieceAuth.CustomAuth({
       await waflyApiCall({
         auth: { props: auth },
         method: HttpMethod.GET,
-        resourceUri: '/status',
+        resourceUri: '/webhook',
       });
       return { valid: true };
     } catch {
       return {
         valid: false,
         error:
-          'Could not reach the instance. Check the Client Token, instance name and instance token.',
+          'Could not read the instance configuration. Check the public instance ID and instance token, and provide the Client Token header.',
       };
     }
   },
@@ -105,22 +104,33 @@ export async function waflyApiCall<T extends HttpMessageBody>({
     instance
   )}/token/${encodeURIComponent(token)}`;
 
-  const response = await httpClient.sendRequest<T>({
-    method,
-    url: `${root}${basePath}${resourceUri}`,
-    headers: {
-      'Client-Token': clientToken,
-      'Content-Type': 'application/json',
-      // Identifies the caller, the same way any SDK does. Carries nothing about
-      // the user or the flow — it is what separates real usage from install
-      // counts, which are inflated by CI and mirrors.
-      'User-Agent': `activepieces-piece-wafly/${PIECE_VERSION}`,
-    },
-    body,
-    queryParams,
-  });
-
-  return response.body;
+  // Use native fetch: the monorepo HTTP helper changes process-wide TLS
+  // verification and logs provider error bodies. Neither belongs in a connector.
+  try {
+    const url = new URL(`${root}${basePath}${resourceUri}`);
+    for (const [key, value] of Object.entries(queryParams ?? {})) {
+      url.searchParams.set(key, value);
+    }
+    const response = await fetch(url, {
+      method,
+      headers: {
+        'Client-Token': clientToken,
+        'Content-Type': 'application/json',
+        'User-Agent': `activepieces-piece-wafly/${PIECE_VERSION}`,
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      redirect: 'error',
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!response.ok) {
+      throw new Error('Wafly request failed. Check credentials and instance configuration.');
+    }
+    const text = await response.text();
+    return (text ? JSON.parse(text) : undefined) as T;
+  } catch {
+    // Never expose token-bearing URLs, provider bodies or credentials in errors.
+    throw new Error('Wafly request failed. Check credentials and instance configuration.');
+  }
 }
 
 /**

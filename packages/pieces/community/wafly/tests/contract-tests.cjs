@@ -1,0 +1,36 @@
+const assert = require('node:assert/strict');
+const {createHmac}=require('node:crypto');
+const piecePath=process.argv[2];
+if(!piecePath) throw Error('compiled artifact path required');
+let requests=[];let mode='ok';let logs=[];
+const originalError=console.error;
+console.error=(...args)=>logs.push(args.map(String).join(' '));
+global.fetch=async(url,init)=>{requests.push({url:String(url),init}); if(mode==='network')throw Error('LEAK-instance-token LEAK-client-token '+url);if(mode==='reject')return new Response(JSON.stringify({error:'LEAK-instance-token LEAK-client-token'}),{status:401}); return new Response(JSON.stringify({messageId:'fixture-message-id',webhook:null}),{status:200});};
+const {wafly,waflyAuth}=require(piecePath);
+const trigger=wafly.triggers().new_message;
+const auth={props:{baseUrl:'https://fixture.invalid/api-bridge-whats',instance:'fixture-instance',token:'LEAK-instance-token',clientToken:'LEAK-client-token'}};
+const run=(body,extra={})=>trigger.run({payload:{body,...extra},propsValue:{webhookSecret:''},auth});
+let passed=[];
+async function check(name,f){await f();passed.push(name);}
+(async()=>{
+ await check('missing ID rejected',async()=>assert.deepEqual(await run({text:{message:'fixture'}}),[]));
+ for(const id of [null,42,{},[],true,'','different-instance']) await check('invalid ID '+JSON.stringify(id),async()=>assert.deepEqual(await run({instanceId:id}),[]));
+ await check('array body rejected',async()=>assert.deepEqual(await run([]),[]));
+ await check('different legacy ID rejected',async()=>assert.deepEqual(await run({instance:'different'}),[]));
+ await check('exact ID accepted',async()=>assert.equal((await run({instanceId:'fixture-instance'})).length,1));
+ await check('legacy exact ID accepted',async()=>assert.equal((await run({instance:'fixture-instance'})).length,1));
+ await check('conflicting IDs rejected',async()=>assert.deepEqual(await run({instanceId:'fixture-instance',instance:'different'}),[]));
+ await check('matching dual IDs accepted',async()=>assert.equal((await run({instanceId:'fixture-instance',instance:'fixture-instance'})).length,1));
+ await check('empty connection rejected',async()=>assert.deepEqual(await trigger.run({payload:{body:{instanceId:''}},propsValue:{},auth:{props:{instance:''}}}),[]));
+ const body={instanceId:'fixture-instance',text:{message:'fixture'}};const raw=JSON.stringify(body);const secret='offline-fixture-secret';const signature='sha256='+createHmac('sha256',secret).update(raw).digest('hex');
+ const signed=(header,rawBody=raw)=>trigger.run({payload:{body,headers:{'x-hub-signature-256':header},rawBody},propsValue:{webhookSecret:secret},auth});
+ await check('valid signature accepted',async()=>assert.equal((await signed(signature)).length,1));
+ await check('invalid signature rejected',async()=>assert.deepEqual(await signed('sha256=bad'),[]));
+ await check('missing signature rejected',async()=>assert.deepEqual(await signed(undefined),[]));
+ await check('missing raw bytes fails closed',async()=>assert.rejects(()=>trigger.run({payload:{body,headers:{'x-hub-signature-256':signature}},propsValue:{webhookSecret:secret},auth}),/raw request body/));
+ await check('auth reads webhook only',async()=>{const value=await waflyAuth.validate({auth:auth.props});assert.equal(value.valid,true);assert.equal(requests.at(-1).init.method,'GET');assert.match(requests.at(-1).url,/\/webhook$/);assert.ok(!requests.some(r=>/\/(status|connect|qr|logout)/.test(r.url)));});
+ await check('auth refusal redacted',async()=>{mode='reject';const value=await waflyAuth.validate({auth:auth.props});assert.equal(value.valid,false);assert.ok(!JSON.stringify(value).includes('LEAK-'));});
+ await check('action error and logs redacted',async()=>{mode='network';let err;try{await wafly.actions().send_text.run({auth,propsValue:{phone:'5511999999999',message:'offline fixture'}})}catch(e){err=e}assert.ok(err);assert.ok(!String(err).includes('LEAK-'));assert.ok(!logs.join('').includes('LEAK-'));});
+ await check('request preserves TLS and no redirects or retries',async()=>{mode='ok';const before=requests.length;const tls=process.env.NODE_TLS_REJECT_UNAUTHORIZED;await wafly.actions().send_text.run({auth,propsValue:{phone:'5511999999999',message:'offline fixture'}});assert.equal(requests.length,before+1);assert.equal(requests.at(-1).init.redirect,'error');assert.equal(process.env.NODE_TLS_REJECT_UNAUTHORIZED,tls);assert.ok(requests.at(-1).init.signal);assert.match(requests.at(-1).init.headers['User-Agent'],/0.1.1/);});
+ console.error=originalError;console.log(JSON.stringify({artifact:piecePath,passed:passed.length,checks:passed,real_network_requests:0,real_messages:0},null,2));
+})().catch(e=>{console.error=originalError;console.error(e);process.exitCode=1});
